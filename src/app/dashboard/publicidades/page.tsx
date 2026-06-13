@@ -1,0 +1,225 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+
+interface Recommendation {
+  id: string;
+  title: string;
+  subtitle: string;
+  type: string;
+  externalUrl: string | null;
+  imageUrl: string;
+  color: string;
+  icon: string;
+  ctaLabel: string;
+  ctaLink: string;
+}
+
+export default function PublicidadesPage() {
+  const router = useRouter();
+  const [items, setItems] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    subtitle: '',
+    type: 'instagram',
+    externalUrl: '',
+    color: '#FF6B00',
+    icon: 'megaphone',
+    ctaLabel: '',
+    ctaLink: '',
+    active: 'true',
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) {
+      router.push('/login');
+      return;
+    }
+    setToken(storedToken);
+    fetchItems(storedToken);
+  }, [router]);
+
+  const fetchItems = async (authToken: string) => {
+    try {
+      const res = await fetch('/api/recommendations', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      setItems(data.result?.recommendations || []);
+    } catch {
+      console.error('Error fetching');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setCreating(true);
+    try {
+      const formData = new FormData();
+      Object.entries(form).forEach(([key, value]) => formData.append(key, value));
+      if (imageFile) formData.append('image', imageFile);
+
+      const res = await fetch('/api/admin/recommendations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        setShowForm(false);
+        setForm({ title: '', subtitle: '', type: 'instagram', externalUrl: '', color: '#FF6B00', icon: 'megaphone', ctaLabel: '', ctaLink: '', active: 'true' });
+        setImageFile(null);
+        fetchItems(token);
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!token) return;
+    if (!confirm('¿Eliminar esta publicidad?')) return;
+    try {
+      const res = await fetch(`/api/admin/recommendations/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('Error al eliminar publicidad:', res.status, data);
+        alert(`Error: ${data.message || 'No se pudo eliminar'}`);
+        return;
+      }
+      console.log('Publicidad eliminada:', data);
+      fetchItems(token);
+    } catch (err) {
+      console.error('Error de red al eliminar publicidad:', err);
+      alert('Error de conexión');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="text-slate-500 hover:text-slate-700">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+            <div className="flex items-center gap-3">
+              <Image src="/images/ic_launcher.png" alt="USA ALL BENEFITS GROUP PANEL" width={36} height={36} className="rounded-lg" />
+              <span className="text-xl font-bold text-slate-900">USA ALL BENEFITS GROUP PANEL</span>
+            </div>
+            <button
+              onClick={async () => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                  try {
+                    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/logout`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                  } catch (err) {
+                    console.error('Logout error', err);
+                  }
+                }
+                localStorage.removeItem('token');
+                router.push('/login');
+              }}
+              className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="px-4 py-2 bg-[#FF6B00] text-white rounded-lg hover:bg-[#E65A00] transition-colors"
+          >
+            {showForm ? 'Cancelar' : '+ Nueva Publicidad'}
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">Publicidad</h2>
+
+        {showForm && (
+          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-slate-200 p-6 mb-8 grid grid-cols-2 gap-4">
+            <input placeholder="Título" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" required />
+            <input placeholder="Subtítulo" value={form.subtitle} onChange={e => setForm({...form, subtitle: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg">
+              <option value="instagram">Instagram</option>
+              <option value="youtube">YouTube</option>
+            </select>
+            <input placeholder="Color (ej: #FF6B00)" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Imagen</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => setImageFile(e.target.files?.[0] || null)}
+                className="hidden"
+                id="image-upload"
+              />
+              <label htmlFor="image-upload" className="flex items-center justify-center w-16 h-16 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-[#FF6B00] hover:bg-orange-50 transition-colors">
+                {imageFile ? (
+                  <Image src={URL.createObjectURL(imageFile)} alt="Preview" width={48} height={48} className="object-cover rounded-lg" />
+                ) : (
+                  <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                )}
+              </label>
+              {imageFile && <p className="text-xs text-slate-500 mt-1 truncate max-w-16">{imageFile.name}</p>}
+            </div>
+            <input placeholder="Label CTA" value={form.ctaLabel} onChange={e => setForm({...form, ctaLabel: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <input placeholder="Link CTA" value={form.ctaLink} onChange={e => setForm({...form, ctaLink: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <input placeholder="URL externa" value={form.externalUrl} onChange={e => setForm({...form, externalUrl: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <button type="submit" disabled={creating} className="col-span-2 py-2 bg-[#FF6B00] text-white rounded-lg hover:bg-[#E65A00] disabled:opacity-50">
+              {creating ? 'Creando...' : 'Crear Publicidad'}
+            </button>
+          </form>
+        )}
+
+        {loading ? (
+          <p className="text-slate-500">Cargando...</p>
+        ) : items.length === 0 ? (
+          <p className="text-slate-500">No hay publicidades</p>
+        ) : (
+          <div className="space-y-4">
+            {items.map((item) => (
+              <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6 hover:shadow-lg transition-shadow">
+                <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden" style={{ backgroundColor: item.color + '20' }}>
+                  {item.imageUrl && (
+                    <Image src={item.imageUrl} alt={item.title} width={80} height={80} className="object-cover" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-slate-900">{item.title}</h3>
+                  <p className="text-sm text-slate-500 mt-1 truncate">{item.subtitle}</p>
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <span className="text-xs px-3 py-1 bg-slate-100 rounded-full text-slate-600">{item.type}</span>
+                  <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700 text-sm">Eliminar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
