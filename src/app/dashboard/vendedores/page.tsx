@@ -311,7 +311,7 @@ export default function VendedoresPage() {
                 <input
                   type="number"
                   min="0"
-                  max="5"
+                  max="10"
                   step="0.1"
                   value={editModal.rating}
                   onChange={e => setEditModal({...editModal, rating: parseFloat(e.target.value) || 0})}
