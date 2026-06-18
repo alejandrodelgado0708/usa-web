@@ -10,7 +10,7 @@ interface Recommendation {
   title: string;
   subtitle: string;
   type: string;
-  externalUrl: string | null;
+  ctaLink: string | null;
   imageUrl: string;
 }
 
@@ -23,7 +23,7 @@ export default function PublicidadesPage() {
     title: '',
     subtitle: '',
     type: 'instagram',
-    externalUrl: '',
+    ctaLink: '',
     active: 'true',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -98,7 +98,7 @@ export default function PublicidadesPage() {
       const data = await res.json();
       if (res.ok) {
         setShowForm(false);
-        setForm({ title: '', subtitle: '', type: 'instagram', externalUrl: '', active: 'true' });
+        setForm({ title: '', subtitle: '', type: 'instagram', ctaLink: '', active: 'true' });
         setImageFile(null);
         setImageError(null);
         setSuccessModal('Publicidad creada exitosamente');
@@ -195,7 +195,7 @@ export default function PublicidadesPage() {
               <option value="cursos">Cursos</option>
               <option value="productos">Productos</option>
             </select>
-            <input placeholder="URL externa" value={form.externalUrl} onChange={e => setForm({...form, externalUrl: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <input placeholder="Redirigir a:" value={form.ctaLink} onChange={e => setForm({...form, ctaLink: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
             <div className="col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-2">Imagen (mín. 1080×374px)</label>
               <input
