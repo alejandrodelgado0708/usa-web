@@ -12,10 +12,6 @@ interface Recommendation {
   type: string;
   externalUrl: string | null;
   imageUrl: string;
-  color: string;
-  icon: string;
-  ctaLabel: string;
-  ctaLink: string;
 }
 
 export default function PublicidadesPage() {
@@ -28,13 +24,10 @@ export default function PublicidadesPage() {
     subtitle: '',
     type: 'instagram',
     externalUrl: '',
-    color: '#FF6B00',
-    icon: 'megaphone',
-    ctaLabel: '',
-    ctaLink: '',
     active: 'true',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [successModal, setSuccessModal] = useState<string | null>(null);
@@ -64,9 +57,33 @@ export default function PublicidadesPage() {
     }
   };
 
+  const validateImage = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width < 1080 || img.height < 374) {
+          setImageError(`La imagen debe tener al menos 1080×374px (actual: ${img.width}×${img.height}px)`);
+          resolve(false);
+        } else {
+          setImageError(null);
+          resolve(true);
+        }
+      };
+      img.onerror = () => {
+        setImageError('Error al cargar la imagen');
+        resolve(false);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (imageFile) {
+      const valid = await validateImage(imageFile);
+      if (!valid) return;
+    }
     setCreating(true);
     try {
       const formData = new FormData();
@@ -81,8 +98,9 @@ export default function PublicidadesPage() {
       const data = await res.json();
       if (res.ok) {
         setShowForm(false);
-        setForm({ title: '', subtitle: '', type: 'instagram', externalUrl: '', color: '#FF6B00', icon: 'megaphone', ctaLabel: '', ctaLink: '', active: 'true' });
+        setForm({ title: '', subtitle: '', type: 'instagram', externalUrl: '', active: 'true' });
         setImageFile(null);
+        setImageError(null);
         setSuccessModal('Publicidad creada exitosamente');
         fetchItems(token);
       } else {
@@ -170,10 +188,16 @@ export default function PublicidadesPage() {
             <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg">
               <option value="instagram">Instagram</option>
               <option value="youtube">YouTube</option>
+              <option value="facebook">Facebook</option>
+              <option value="tiktok">TikTok</option>
+              <option value="twitter">X / Twitter</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="cursos">Cursos</option>
+              <option value="productos">Productos</option>
             </select>
-            <input placeholder="Color (ej: #FF6B00)" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Imagen</label>
+            <input placeholder="URL externa" value={form.externalUrl} onChange={e => setForm({...form, externalUrl: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Imagen (mín. 1080×374px)</label>
               <input
                 type="file"
                 accept="image/*"
@@ -181,20 +205,21 @@ export default function PublicidadesPage() {
                 className="hidden"
                 id="image-upload"
               />
-              <label htmlFor="image-upload" className="flex items-center justify-center w-16 h-16 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-[#FF6B00] hover:bg-orange-50 transition-colors">
+              <label htmlFor="image-upload" className="flex items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-[#FF6B00] hover:bg-orange-50 transition-colors">
                 {imageFile ? (
-                  <Image src={URL.createObjectURL(imageFile)} alt="Preview" width={48} height={48} className="object-cover rounded-lg" />
+                  <Image src={URL.createObjectURL(imageFile)} alt="Preview" width={200} height={70} className="object-cover rounded-lg" />
                 ) : (
-                  <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="text-sm text-slate-400">Seleccionar imagen</span>
+                  </div>
                 )}
               </label>
-              {imageFile && <p className="text-xs text-slate-500 mt-1 truncate max-w-16">{imageFile.name}</p>}
+              {imageFile && <p className="text-xs text-slate-500 mt-1 truncate">{imageFile.name}</p>}
+              {imageError && <p className="text-xs text-red-500 mt-1">{imageError}</p>}
             </div>
-            <input placeholder="Label CTA" value={form.ctaLabel} onChange={e => setForm({...form, ctaLabel: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
-            <input placeholder="Link CTA" value={form.ctaLink} onChange={e => setForm({...form, ctaLink: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
-            <input placeholder="URL externa" value={form.externalUrl} onChange={e => setForm({...form, externalUrl: e.target.value})} className="px-4 py-2 border border-slate-200 rounded-lg" />
             <button type="submit" disabled={creating} className="col-span-2 py-2 bg-[#FF6B00] text-white rounded-lg hover:bg-[#E65A00] disabled:opacity-50">
               {creating ? 'Creando...' : 'Crear Publicidad'}
             </button>
@@ -209,7 +234,7 @@ export default function PublicidadesPage() {
           <div className="space-y-4">
             {items.map((item) => (
               <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6 hover:shadow-lg transition-shadow">
-                <div className="w-20 h-20 rounded-full flex-shrink-0 overflow-hidden" style={{ backgroundColor: item.color + '20' }}>
+                <div className="w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden bg-slate-100">
                   {item.imageUrl && (
                     <Image src={item.imageUrl} alt={item.title} width={80} height={80} className="object-cover" />
                   )}
