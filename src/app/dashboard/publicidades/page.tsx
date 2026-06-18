@@ -59,7 +59,7 @@ export default function PublicidadesPage() {
 
   const validateImage = (file: File): Promise<boolean> => {
     return new Promise((resolve) => {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => {
         if (img.width < 1080 || img.height < 374) {
           setImageError(`La imagen debe tener al menos 1080×374px (actual: ${img.width}×${img.height}px)`);
